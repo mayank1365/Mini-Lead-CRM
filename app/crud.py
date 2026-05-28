@@ -16,7 +16,6 @@ VALID_TRANSITIONS = {
     LeadStatus.QUALIFIED: {LeadStatus.CONVERTED, LeadStatus.LOST},
     LeadStatus.CONVERTED: set(),  # Terminal state
     LeadStatus.LOST: set(),       # Terminal state
-}
 
 
 def get_lead(db: Session, lead_id: str) -> Optional[Lead]:
@@ -46,10 +45,11 @@ def create_lead(db: Session, lead_in: LeadCreate) -> Lead:
 
 def update_lead(db: Session, db_lead: Lead, lead_in: LeadUpdate) -> Lead:
     # Update all fields except ID, status, created_at, updated_at
-    db_lead.name = lead_in.name
-    db_lead.email = lead_in.email
-    db_lead.phone = lead_in.phone
-    db_lead.source = lead_in.source
+    # Use setattr to avoid static typechecker complaints about SQLAlchemy Column descriptors
+    setattr(db_lead, "name", lead_in.name)
+    setattr(db_lead, "email", lead_in.email)
+    setattr(db_lead, "phone", lead_in.phone)
+    setattr(db_lead, "source", lead_in.source)
     
     db.commit()
     db.refresh(db_lead)
@@ -69,13 +69,13 @@ def transition_lead_status(db: Session, db_lead: Lead, next_status: LeadStatus) 
         # Actually, let's keep it simple: if current_status == next_status, it's a no-op.
         return db_lead
 
-    allowed_next = VALID_TRANSITIONS.get(current_status, set())
+    allowed_next = VALID_TRANSITIONS.get(current_status, set())  # type: ignore[arg-type]
     if next_status not in allowed_next:
         raise InvalidStatusTransition(
             f"Invalid status transition from {current_status.value} to {next_status.value}"
         )
     
-    db_lead.status = next_status
+    setattr(db_lead, "status", next_status)
     db.commit()
     db.refresh(db_lead)
     return db_lead
