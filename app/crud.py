@@ -16,7 +16,7 @@ VALID_TRANSITIONS = {
     LeadStatus.QUALIFIED: {LeadStatus.CONVERTED, LeadStatus.LOST},
     LeadStatus.CONVERTED: set(),  # Terminal state
     LeadStatus.LOST: set(),       # Terminal state
-
+}
 
 def get_lead(db: Session, lead_id: str) -> Optional[Lead]:
     return db.query(Lead).filter(Lead.id == lead_id).first()
