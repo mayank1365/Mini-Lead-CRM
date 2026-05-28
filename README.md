@@ -22,9 +22,9 @@ SQLite is a zero-configuration, serverless, file-based SQL database, making it i
 
 ## Getting Started
 
-You can run this application either using **Docker (Recommended)** or **locally with a Python virtual environment**.
+You can run this application either using **Docker** or **locally with a Python virtual environment**.
 
-### Option A: Using Docker & Docker Compose (Recommended)
+### Option A: Using Docker & Docker Compose
 
 Make sure you have Docker and Docker Compose installed.
 

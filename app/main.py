@@ -33,6 +33,5 @@ def read_root():
     return {
         "message": "Welcome to the Sales Lead CRM API",
         "docs_url": "/docs",
-        "redoc_url": "/redoc",
         "status": "healthy"
     }

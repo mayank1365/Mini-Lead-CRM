@@ -23,7 +23,7 @@ class Lead(Base):
 
     id = Column(String(36), primary_key=True, default=generate_short_uuid, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, nullable=False, index=True)
+    email = Column(String, nullable=False, unique=True, index=True)
     phone = Column(String, nullable=True)
     status = Column(Enum(LeadStatus), nullable=False, default=LeadStatus.NEW)
     source = Column(String, nullable=True)
