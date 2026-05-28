@@ -18,10 +18,12 @@ VALID_TRANSITIONS = {
     LeadStatus.LOST: set(),       # Terminal state
 }
 
+# HTTP GET /leads/:id
 def get_lead(db: Session, lead_id: str) -> Optional[Lead]:
     return db.query(Lead).filter(Lead.id == lead_id).first()
 
 
+# HTTP GET /leads
 def get_leads(db: Session, status: Optional[LeadStatus] = None) -> List[Lead]:
     query = db.query(Lead)
     if status is not None:
@@ -29,6 +31,7 @@ def get_leads(db: Session, status: Optional[LeadStatus] = None) -> List[Lead]:
     return query.all()
 
 
+# HTTP POST /leads
 def create_lead(db: Session, lead_in: LeadCreate) -> Lead:
     db_lead = Lead(
         name=lead_in.name,
@@ -43,6 +46,7 @@ def create_lead(db: Session, lead_in: LeadCreate) -> Lead:
     return db_lead
 
 
+# HTTP PUT /leads/:id
 def update_lead(db: Session, db_lead: Lead, lead_in: LeadUpdate) -> Lead:
     # Update all fields except ID, status, created_at, updated_at
     # Use setattr to avoid static typechecker complaints about SQLAlchemy Column descriptors
@@ -56,6 +60,7 @@ def update_lead(db: Session, db_lead: Lead, lead_in: LeadUpdate) -> Lead:
     return db_lead
 
 
+# HTTP PATCH /leads/:id/status
 def transition_lead_status(db: Session, db_lead: Lead, next_status: LeadStatus) -> Lead:
     current_status = db_lead.status
     
@@ -81,6 +86,7 @@ def transition_lead_status(db: Session, db_lead: Lead, next_status: LeadStatus) 
     return db_lead
 
 
+# HTTP DELETE /leads/:id
 def delete_lead(db: Session, db_lead: Lead) -> None:
     db.delete(db_lead)
     db.commit()
