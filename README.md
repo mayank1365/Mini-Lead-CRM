@@ -195,6 +195,102 @@ The complete, interactive OpenAPI specification is hosted at `/docs`. Below is a
   }
   ```
 
+#### 7. Bulk Create Leads
+
+- **Method & Path**: `POST /leads/bulk`
+- **Description**: Creates multiple leads in a single request. If some records are invalid (e.g., missing name, duplicate email, bad email format), they fail individually with clear, per-record errors, but all other valid records in the batch succeed (partial success).
+- **Request Body**: An array of lead objects:
+  ```json
+  [
+    {
+      "name": "Lead A",
+      "email": "leada@example.com",
+      "phone": "+91-9876543210"
+    },
+    {
+      "name": "Invalid Lead",
+      "email": "not-an-email"
+    }
+  ]
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "total": 2,
+    "successful": 1,
+    "failed": 1,
+    "results": [
+      {
+        "index": 0,
+        "success": true,
+        "lead": {
+          "id": "b3c4d5e6",
+          "name": "Lead A",
+          "email": "leada@example.com",
+          "phone": "+91-9876543210",
+          "status": "NEW",
+          "source": null,
+          "created_at": "2026-05-29T18:00:00Z",
+          "updated_at": "2026-05-29T18:00:00Z"
+        }
+      },
+      {
+        "index": 1,
+        "success": false,
+        "error": "email: value is not a valid email address"
+      }
+    ]
+  }
+  ```
+
+#### 8. Bulk Update Leads
+
+- **Method & Path**: `PUT /leads/bulk`
+- **Description**: Performs partial updates on multiple leads at once. Each record in the list must specify a valid `id`. Invalid updates (e.g. invalid email format, duplicate email conflict, non-existent lead ID) fail individually, while all other valid updates in the batch are saved successfully (partial success).
+- **Request Body**: An array of partial update objects with IDs:
+  ```json
+  [
+    {
+      "id": "b3c4d5e6",
+      "name": "Lead A Updated",
+      "phone": "+91-9876543211"
+    },
+    {
+      "id": "nonexistent123",
+      "name": "No Body"
+    }
+  ]
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "total": 2,
+    "successful": 1,
+    "failed": 1,
+    "results": [
+      {
+        "index": 0,
+        "success": true,
+        "lead": {
+          "id": "b3c4d5e6",
+          "name": "Lead A Updated",
+          "email": "leada@example.com",
+          "phone": "+91-9876543211",
+          "status": "NEW",
+          "source": null,
+          "created_at": "2026-05-29T18:00:00Z",
+          "updated_at": "2026-05-29T18:05:00Z"
+        }
+      },
+      {
+        "index": 1,
+        "success": false,
+        "error": "Lead with ID nonexistent123 not found"
+      }
+    ]
+  }
+  ```
+
 ---
 
 ## ⚙️ Lead Status Workflow
@@ -270,4 +366,12 @@ To handle this at scale, we would implement:
      # SQLAlchemy syntax
      db_lead = db.query(Lead).filter(Lead.id == lead_id).with_for_update().first()
      ```
-   - This translates to `SELECT ... FOR UPDATE` in PostgreSQL/MySQL, which blocks other threads/processes trying to acquire a lock on this lead until the active transaction completes (commits or rolls back). Since SQLite serializes writes naturally, standard ORM integrations in PostgreSQL or MySQL would adopt this effortlessly.
+    - This translates to `SELECT ... FOR UPDATE` in PostgreSQL/MySQL, which blocks other threads/processes trying to acquire a lock on this lead until the active transaction completes (commits or rolls back). Since SQLite serializes writes naturally, standard ORM integrations in PostgreSQL or MySQL would adopt this effortlessly.
+
+### 4. Bulk Operations: Partial Success & Schema Validation
+
+To support batch processing (`POST /leads/bulk` and `PUT /leads/bulk`), we prioritized robust execution and highly actionable response models:
+
+- **Bypassing Global FastAPI 422s**: Standard FastAPI endpoint typing (e.g. `leads_in: List[LeadCreate]`) automatically rejects the *entire* request with a 422 validation error if even one element is slightly malformed. To satisfy the partial success requirement, we typed inputs as `List[dict]` and manually ran `model_validate()` on each dictionary. This allows us to intercept Pydantic's `ValidationError` individually for each index and format a readable error message (e.g. `"email is required"`), while successfully saving valid records.
+- **Granular Database Transactions**: We wrap the database `commit()` for each individual record in a localized `try/except` block. If a database integrity error occurs (such as a unique constraint violation for a duplicate email), we invoke `db.rollback()` for that specific record. This avoids putting the SQLAlchemy Session in an invalid state and ensures subsequent valid items in the batch are still successfully persisted.
+- **Route Precedence**: We placed the bulk endpoints above standard dynamic path endpoints (such as `PUT /leads/:id`). This prevents path parameter collisions where `PUT /leads/bulk` would otherwise be parsed as a dynamic update for a lead with an ID of `"bulk"`.
