@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.models import LeadStatus
 
@@ -35,3 +35,25 @@ class LeadResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LeadBulkUpdateItem(BaseModel):
+    id: str = Field(..., description="The ID of the lead to update")
+    name: Optional[str] = Field(None, min_length=1, description="The full name of the lead")
+    email: Optional[EmailStr] = Field(None, description="The contact email address of the lead")
+    phone: Optional[str] = Field(None, description="Optional phone number of the lead")
+    source: Optional[str] = Field(None, description="Optional source of the lead")
+
+
+class BulkResultItem(BaseModel):
+    index: int
+    success: bool
+    lead: Optional[LeadResponse] = None
+    error: Optional[str] = None
+
+
+class BulkResponse(BaseModel):
+    total: int
+    successful: int
+    failed: int
+    results: List[BulkResultItem]
